@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMS Monitor Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body { background-color: #f3f4f6; font-family: sans-serif; }
+    </style>
+</head>
+<body>
+
+    <div class="max-w-4xl mx-auto p-4 md:p-8">
+        <div class="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm mb-6">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-8xl">SMS Monitor Dashboard</h1>
+                <p class="text-sm text-gray-500">Real-time upcoming messages tracking</p>
+            </div>
+            <div class="flex items-center space-x-2">
+                <span class="relative flex h-3 w-3">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                </span>
+                <span class="text-sm font-medium text-green-6xl">Live</span>
+            </div>
+        </div>
+
+        <div id="loader" class="text-center py-10">
+            <p class="text-gray-500 animate-pulse">Connecting to Firebase Database...</p>
+        </div>
+
+        <div id="messages-container" class="space-y-4 hidden">
+            </div>
+
+        <div id="no-messages" class="hidden text-center bg-white p-12 rounded-2xl shadow-sm text-gray-400">
+            No messages captured yet. Send a test SMS to check.
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+    <script>
+        // 1. TODO: Apne Firebase Project ki Configuration details yahan dalein
+        // Yeh details aapko Firebase Console -> Project Settings me milengi
+        const firebaseConfig = {
+            databaseURL: "https://ratsms-d15e7-default-rtdb.firebaseio.com" 
+        };
+
+        // Firebase Initialize
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // DOM Elements
+        const messagesContainer = document.getElementById('messages-container');
+        const loader = document.getElementById('loader');
+        const noMessages = document.getElementById('no-messages');
+
+        // 2. Realtime Database se data read karna
+        // '.on()' method use kiya hai taaki page refresh kiye bina naya SMS automatic turant dikhe
+        database.ref('messages').on('value', (snapshot) => {
+            loader.style.display = 'none';
+            messagesContainer.innerHTML = ''; // Purana list clear karein naye render ke liye
+
+            if (snapshot.exists()) {
+                messagesContainer.classList.remove('hidden');
+                noMessages.classList.add('hidden');
+
+                const data = snapshot.val();
+                
+                // Firebase unique ID ke sath array me convert karna
+                const messagesList = Object.keys(data).map(key => ({
+                    id: key,
+                    ...data[key]
+                }));
+
+                // Requirement: Latest First (Sabse naya message sabse upar)
+                // Hum data ko timestamp ke basis par descending order me sort karenge
+                messagesList.sort((a, b) => b.timestamp - a.timestamp);
+
+                // UI standard me loop chalana
+                messagesList.forEach((sms) => {
+                    // Raw Timestamp ko readable Date & Time me badalna
+                    const smsDate = new Date(sms.timestamp).toLocaleString('en-IN', {
+                        timeZone: 'Asia/Kolkata',
+                        dateStyle: 'medium',
+                        timeStyle: 'short'
+                    });
+
+                    // Message Card ki HTML template
+                    const cardHtml = `
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                            <div class="flex justify-between items-start mb-3">
+                                <span class="bg-blue-50 text-blue-600 font-semibold px-3 py-1 rounded-full text-sm">
+                                    ${sms.sender}
+                                </span>
+                                <span class="text-xs text-gray-400 font-medium">
+                                    ${smsDate}
+                                </span>
+                            </div>
+                            <p class="text-gray-700 whitespace-pre-wrap break-words text-sm md:text-base selection:bg-blue-100">
+                                ${sms.message}
+                            </p>
+                        </div>
+                    `;
+                    
+                    messagesContainer.innerHTML += cardHtml;
+                });
+
+            } else {
+                messagesContainer.classList.add('hidden');
+                noMessages.classList.remove('hidden');
+            }
+        }, (error) => {
+            console.error("Firebase Read Error: ", error);
+            loader.innerHTML = `<p class="text-red-500">Error connecting to database. Check security rules.</p>`;
+        });
+    </script>
+</body>
+</html>
