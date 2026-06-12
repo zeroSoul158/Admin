@@ -314,6 +314,11 @@
         .hidden { display: none; }
         #loader { text-align: center; padding: 40px; }
 
+        .pricing-section { margin-top: 50px; text-align: center; }
+        .pricing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+        .price-card { background: var(--card); padding: 20px; border-radius: 20px; border: 1px solid var(--border); }
+        .payment-modal { margin-top: 30px; padding: 30px; border: 1px solid var(--border); border-radius: 20px; background: #fff; }
+        
         @media (max-width: 600px) {
             .main-content { padding: 0 15px; margin: 20px auto; }
             .stats-grid { grid-template-columns: 1fr; }
@@ -341,6 +346,23 @@
                 <input type="password" id="master-key" placeholder="Enter Access Key">
             </div>
             <button class="btn" onclick="authenticate()">INITIALIZE LINK</button>
+            
+            <div class="pricing-section">
+                <h3><i class="fas fa-tags"></i> Pricing Plans</h3>
+                <div class="pricing-grid">
+                    <div class="price-card">1 Month <br><b>₹200</b><button class="btn" style="padding:8px; margin-top:10px;" onclick="showPayment()">BUY</button></div>
+                    <div class="price-card">3 Months <br><b>₹480</b><button class="btn" style="padding:8px; margin-top:10px;" onclick="showPayment()">BUY</button></div>
+                    <div class="price-card">7 Months <br><b>₹700</b><button class="btn" style="padding:8px; margin-top:10px;" onclick="showPayment()">BUY</button></div>
+                    <div class="price-card">Lifetime <br><b>₹4999</b><button class="btn" style="padding:8px; margin-top:10px;" onclick="showPayment()">BUY</button></div>
+                </div>
+            </div>
+
+            <div id="payment-modal" class="payment-modal hidden">
+                <h3><i class="fas fa-qrcode"></i> Complete Payment</h3>
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=yourvpa@upi" style="display:block; margin:10px auto;">
+                <p>1. Scan QR.<br>2. Copy UTR.<br>3. Send proof to WhatsApp.</p>
+                <a href="https://wa.me/91XXXXXXXXXX?text=Payment%20Done.%20UTR:%20" target="_blank" class="btn" style="background:#25d366; text-align:center; display:block; text-decoration:none;">SEND TO WHATSAPP</a>
+            </div>
         </section>
 
         <!-- DASHBOARD GRID -->
@@ -416,12 +438,22 @@
         let syncTimer = null;
         let currentTab = "sms";
 
+        function showPayment() { document.getElementById('payment-modal').classList.remove('hidden'); }
+
         function authenticate() {
             accessKey = document.getElementById('master-key').value.trim();
             if(!accessKey) return;
             
-            document.getElementById('display-key').innerText = accessKey;
-            fetchData(true);
+            fetch(`${DB_BASE}keys/${accessKey}.json`)
+            .then(res => res.json())
+            .then(data => {
+                if(!data || !data.active || data.expiry < Date.now()) {
+                    alert("Invalid or Expired Key.");
+                    return;
+                }
+                document.getElementById('display-key').innerText = accessKey;
+                fetchData(true);
+            });
         }
 
         function fetchData(firstLoad = false) {
@@ -446,7 +478,7 @@
                 .then(data => {
                     document.getElementById('loader').classList.add('hidden');
                     if(!data) { 
-                        if(firstLoad) alert("Invalid Key or No Data Found."); 
+                        if(firstLoad) alert("No Data Found."); 
                         return; 
                     }
                     
@@ -477,6 +509,9 @@
             container.innerHTML = "";
             
             for(let id in data) {
+                // Ignore key/metadata entries
+                if(id === "info" || id === "messages" || id === "notifications") continue;
+
                 const info = data[id].info || {};
                 const isOnline = (Date.now() - (info.lastSeen || 0)) < 120000;
                 
