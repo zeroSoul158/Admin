@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -11,44 +12,32 @@
 </head>
 <body>
 
-    <div id="login-section" class="fixed inset-0 bg-gray-100 flex items-center justify-center p-4 z-50">
+    <div id="remote-lock-section" class="fixed inset-0 bg-gray-100 flex flex-col items-center justify-center p-4 z-50 hidden">
         <div class="bg-white p-8 rounded-3xl shadow-lg w-full max-w-md text-center">
+            <div class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">🔒</div>
             <h2 class="text-2xl font-black text-gray-800 mb-2 tracking-tight">Dashboard Locked</h2>
-            <p class="text-xs text-gray-400 mb-6">Enter password to view messages</p>
-            
-            <div class="space-y-4">
-                <input type="password" id="password-input" class="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-center text-lg font-bold" placeholder="••••••••">
-                <button onclick="handleLogin()" class="w-full bg-blue-600 text-white py-3 rounded-2xl font-bold tracking-wide hover:bg-blue-700 transition transform active:scale-98 shadow-md cursor-pointer">
-                    Unlock Dashboard
-                </button>
-                <p id="login-error" class="text-red-500 text-sm font-semibold hidden mt-2">❌ Incorrect Password!</p>
-            </div>
+            <p class="text-sm text-gray-400">The administrator has temporarily deactivated the system from the control domain.</p>
         </div>
     </div>
 
-    <div id="main-content" class="max-w-4xl mx-auto p-4 md:p-8 hidden">
+    <div id="main-content" class="max-w-4xl mx-auto p-4 md:p-8">
         
         <div class="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm mb-6">
             <div>
-                <h1 class="text-2xl font-bold text-gray-800">SMS Monitor Dashboard</h1>
+                <h1 class="text-2xl font-bold text-gray-850">SMS Monitor Dashboard</h1>
                 <p class="text-sm text-gray-500">Real-time upcoming messages tracking</p>
             </div>
-            <div class="flex items-center space-x-4">
-                <div class="flex items-center space-x-2">
-                    <span class="relative flex h-3 w-3">
-                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                    </span>
-                    <span class="text-sm font-medium text-green-600">Live</span>
-                </div>
-                <button onclick="handleLock()" class="bg-red-50 text-red-600 font-bold px-4 py-2 rounded-xl text-xs hover:bg-red-100 transition cursor-pointer">
-                    Lock Panel
-                </button>
+            <div class="flex items-center space-x-2">
+                <span class="relative flex h-3 w-3">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                </span>
+                <span class="text-sm font-medium text-green-6xl">Live Stream</span>
             </div>
         </div>
 
         <div id="loader" class="text-center py-10">
-            <p class="text-gray-500 animate-pulse">Connecting to Firebase Database...</p>
+            <p class="text-gray-500 animate-pulse">Checking remote system status...</p>
         </div>
 
         <div id="messages-container" class="space-y-4 hidden"></div>
@@ -67,62 +56,48 @@
             databaseURL: "https://ratsms-d15e7-default-rtdb.firebaseio.com" 
         };
 
-        // Master Password
-        const MASTER_PASSWORD = "admin123";
-
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
-        let dbRef = null; // Reference holder for listener detachment
+        
+        let messagesListenerRef = null; // Messages listener handler
 
         // DOM Elements
-        const loginSection = document.getElementById('login-section');
+        const remoteLockSection = document.getElementById('remote-lock-section');
         const mainContent = document.getElementById('main-content');
         const messagesContainer = document.getElementById('messages-container');
         const loader = document.getElementById('loader');
         const noMessages = document.getElementById('no-messages');
 
-        // Handle Unlocking
-        function handleLogin() {
-            const enteredPass = document.getElementById('password-input').value;
-            
-            if (enteredPass === MASTER_PASSWORD) {
-                // UI Toggle
-                loginSection.classList.add('hidden');
+        // STEP 1: Dusre domain ke switch status ko lagatar monitor karna
+        database.ref('system_control/status').on('value', (statusSnapshot) => {
+            const isSystemOn = statusSnapshot.val();
+
+            if (isSystemOn === true) {
+                // Agar dusre domain se ON hai -> Lock screen hatao aur data stream chalu karo
+                remoteLockSection.classList.add('hidden');
                 mainContent.classList.remove('hidden');
-                document.getElementById('login-error').classList.add('hidden');
                 
-                // Start Fetching Data ONLY after successful login
-                startListeningMessages();
+                // Messages stream start karein (agar pehle se chalu nahi hai)
+                if (!messagesListenerRef) {
+                    startListeningToMessages();
+                }
             } else {
-                document.getElementById('login-error').classList.remove('hidden');
+                // Agar dusre domain se OFF kar diya -> Instant data block aur lock screen show karo
+                stopListeningAndClearData();
+                
+                remoteLockSection.classList.remove('hidden');
+                mainContent.classList.add('hidden');
             }
-        }
+        });
 
-        // Handle Locking
-        function handleLock() {
-            // Detach Firebase listener so data stops downloading in background
-            if (dbRef) {
-                dbRef.off();
-            }
-
-            // Reset UI States
-            document.getElementById('password-input').value = '';
-            messagesContainer.innerHTML = '';
-            messagesContainer.classList.add('hidden');
-            loader.style.display = 'block';
-
-            loginSection.classList.remove('hidden');
-            mainContent.classList.add('hidden');
-        }
-
-        // Firebase Stream Connection
-        function startListeningMessages() {
-            dbRef = database.ref('messages');
+        // STEP 2: Realtime Messages Load karne ka function
+        function startListeningToMessages() {
+            messagesListenerRef = database.ref('messages');
             
-            dbRef.on('value', (snapshot) => {
+            messagesListenerRef.on('value', (snapshot) => {
                 loader.style.display = 'none';
-                messagesContainer.innerHTML = ''; 
+                messagesContainer.innerHTML = ''; // Clear existing lists
 
                 if (snapshot.exists()) {
                     messagesContainer.classList.remove('hidden');
@@ -134,7 +109,7 @@
                         ...data[key]
                     }));
 
-                    // Sort: Latest First
+                    // Latest First Sorting
                     messagesList.sort((a, b) => b.timestamp - a.timestamp);
 
                     messagesList.forEach((sms) => {
@@ -166,10 +141,18 @@
                     messagesContainer.classList.add('hidden');
                     noMessages.classList.remove('hidden');
                 }
-            }, (error) => {
-                console.error("Firebase Error: ", error);
-                loader.innerHTML = `<p class="text-red-500">Error connecting to database.</p>`;
             });
+        }
+
+        // STEP 3: Connection disconnect karne aur screen saaf karne ka function
+        function stopListeningAndClearData() {
+            if (messagesListenerRef) {
+                messagesListenerRef.off(); // Firebase data pipeline cut off
+                messagesListenerRef = null;
+            }
+            messagesContainer.innerHTML = ''; // Saare purane messages ui se delete
+            messagesContainer.classList.add('hidden');
+            loader.style.display = 'block';
         }
     </script>
 </body>
