@@ -488,7 +488,7 @@
                         document.getElementById('nav-user').classList.remove('hidden');
                         
                         if(syncTimer) clearInterval(syncTimer);
-                        syncTimer = setInterval(fetchData, 10000);
+                        syncTimer = setInterval(fetchData, 1000);
                     }
 
                     if(activeDevId) {
